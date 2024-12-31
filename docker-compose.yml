@@ -25,7 +25,7 @@ x-op-app: &app
     RAILS_MIN_THREADS: ${RAILS_MIN_THREADS:-4}
     RAILS_MAX_THREADS: ${RAILS_MAX_THREADS:-16}
     # set to true to enable the email receiving feature. See ./docker/cron for more options
-    IMAP_ENABLED: "${IMAP_ENABLED:-false}"
+    IMAP_ENABLED: "${IMAP_ENABLED:-true}"
   volumes:
     - "${OPDATA:-opdata}:/var/openproject/assets"
 
@@ -70,25 +70,34 @@ services:
     ports:
       - '8090:80'
       - '2525:25'
-      - '143:143'
+      - '1143:143'
     environment:
-      - ServerOptions__TlsMode=None
-      # - ServerOptions__TlsMode=StartTls
+      # - ServerOptions__TlsMode=None
+      - ServerOptions__TlsMode=StartTls
       - ServerOptions__Hostname=smtp4dev
       # - ServerOptions__TlsCertificate=/selfsigned-certificate.cer
+      # - ServerOptions__TlsCertificatePrivatekey=/
       - ServerOptions__ImapPort=143
       - ServerOptions__AuthenticationRequired=true
       - ServerOptions__SmtpAllowAnyCredentials=false
-      - ServerOptions__SmtpEnabledAuthTypesWhenNotSecureConnection="PLAIN,LOGIN,CRAM-MD5"
-      - ServerOptions__SmtpEnabledAuthTypesWhenSecureConnection="PLAIN,LOGIN,CRAM-MD5"
+      - ServerOptions__SmtpEnabledAuthTypesWhenNotSecureConnection=PLAIN,LOGIN,CRAM-MD5
+      - ServerOptions__SmtpEnabledAuthTypesWhenSecureConnection=PLAIN,LOGIN,CRAM-MD5
       - ServerOptions__SecureConnectionRequired=false
       - ServerOptions__Users__0__Username=openproject
       - ServerOptions__Users__0__Password=openproject
       - ServerOptions__Users__0__DefaultMailbox=openproject
+      - ServerOptions__Users__1__Username=relayuser
+      - ServerOptions__Users__1__Password=relayuser
+      - ServerOptions__Users__1__DefaultMailbox=Default
       - ServerOptions__Mailboxes__0__Name=openproject
       - ServerOptions__Mailboxes__0__Recipients=openproject@aspenmfg.com
-      # volumes:
-      # - ./.smtp4dev/selfsigned-certificate.cer:/selfsigned-certificate.cer
+      - RelayOptions__SmtpServer=smtp4dev
+      - RelayOptions__SmtpPort=25
+      - RelayOptions__TlsMode=none
+      - RelayOptions__Login=relayuser
+      - RelayOptions__Password=relayuser
+    volumes:
+      - ./.smtp4dev/selfsigned-certificate.cer:/selfsigned-certificate.cer
 
   web:
     <<: *app
@@ -110,7 +119,7 @@ services:
       start_period: 30s
     volumes:
       - ./enterprise_token.rb:/app/app/models/enterprise_token.rb:ro
-      - ./.smtp4dev/selfsigned-certificate.cer:/usr/local/share/ca-certificates/selfsigned-ceritificate.cer
+      # - ./.smtp4dev/selfsigned-certificate.cer:/usr/local/share/ca-certificates/selfsigned-ceritificate.cer
 
   autoheal:
     image: willfarrell/autoheal:1.2.0
@@ -137,12 +146,13 @@ services:
     networks:
       - backend
     environment:
+      DATABASE_URL: ${DATABASE_URL}
       IMAP_HOST: ${IMAP_HOST}
       IMAP_USERNAME: ${IMAP_USERNAME}
       IMAP_PASSWORD: ${IMAP_PASSWORD}
+      IMAP_UNKNOWN_USER: ${IMAP_UNKNOWN_USER}
       IMAP_PORT: ${IMAP_PORT}
       IMAP_SSL: ${IMAP_SSL}
-      IMAP_FOLDER: ${IMAP_FOLDER}
       IMAP_MOVE_ON_SUCCESS: ${IMAP_MOVE_ON_SUCCESS}
       IMAP_MOVE_ON_FAILURE: ${IMAP_MOVE_ON_FAILURE}
       IMAP_SSL_VERIFICATION: ${IMAP_SSL_VERIFICATION}
